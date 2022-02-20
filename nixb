@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# `nix build` wrapper script utilizing remote builders
+
+# https://stackoverflow.com/a/62961828/2382113
+join_by () {
+	# Argument #1 is the separator. It can be multi-character.
+	# Argument #2, 3, and so on, are the elements to be joined.
+	# Usage: join_by ", " "${array[@]}"
+	local SEPARATOR="$1"
+	shift
+
+	local F=0
+	for x in "$@"
+	do
+		if [[ F -eq 1 ]]
+		then
+			echo -n "$SEPARATOR"
+		else
+			F=1
+		fi
+		echo -n "$x"
+	done
+	echo
+}
+
+builders=(
+	"ssh-ng://dockerbuilder aarch64-linux"
+)
+
+flags=(
+	--builders "$(join_by "; " "${builders[@]}")"
+	--builders-use-substitutes
+)
+
+
+# https://nixos.org/manual/nix/stable/advanced-topics/distributed-builds.html
+# > Warning
+# > If you are building via the Nix daemon, it is the Nix daemon user account (that is, root) that should have SSH access to the remote machine.
+# > If you can’t or don’t want to configure root to be able to access to remote machine, you can use a private Nix store instead by passing e.g. --store ~/my-nix.
+store="$(realpath -- "${NIX_STORE:-$HOME/nix-store}")"
+if [ -n "${store}" ]; then
+	flags+=(--store "$(realpath -- "${store}")")
+fi
+
+# If we keep this, then local nix gets very confused, e.g:
+# >  error: path '/nix/store/9krlzvny65gdc8s7kpb6lkx8cd02c25b-default-builder.sh' is not in the Nix store
+unset NIX_STORE
+
+if [ "$(uname -s)" = "Darwin" ]; then
+	# error: building using a diverted store is not supported on this platform
+	flags+=(--max-jobs 0)
+fi
+
+nix build "${flags[@]}" "${@}"
+
+# TODO: catch --out-link / --no-out-link and rewrite result symlink
+#if [ -d "${store}" ]; then
+#
+#fi
