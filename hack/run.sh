@@ -28,6 +28,35 @@ if ! grep -q -F "Include ~/.ssh/config_nix_builder" "${HOME}/.ssh/config"; then
 fi
 
 name="nixos-builder"
+daemonize=0
+reset=0
+
+while [ -n "${1:-}" ]; do
+	arg="${1}"
+	case "${arg}" in
+		--daemonize)
+			daemonize=1
+			;;
+		--reset)
+			reset=1
+			;;
+		*)
+			echo "Unknown flag '${arg}'"
+			exit 2
+			;;
+	esac
+	shift
+done
+
+docker_flags=()
+if (( daemonize )); then
+	docker_flags+=(--detach)
+fi
+
+if (( reset )); then
+	docker volume rm "${name}-store" "${name}-config" || true
+fi
+
 docker volume create "${name}-store" || true
 docker volume create "${name}-config" || true
 
@@ -37,5 +66,6 @@ exec docker run --rm -ti --name "${name}" \
 	-v "${name}-config:/config" \
 	--tmpfs /tmp:exec \
 	--read-only \
+	"${docker_flags[@]}" \
 	-p 127.0.0.1:10122:22 \
 	nix-builder:latest
