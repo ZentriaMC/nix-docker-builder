@@ -83,6 +83,7 @@ let
     Include /config/sshd/config.d/*
     AuthorizedKeysFile /nix/authorized_keys.d/%u /config/sshd/authorized_keys.d/%u
     PasswordAuthentication no
+    ChallengeResponseAuthentication no
   '';
 
   baseSystem =
