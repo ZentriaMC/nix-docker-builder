@@ -1,5 +1,5 @@
 {
-  description = "Zentria Docker image recipes";
+  description = "Zentria Nix Docker builder";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
