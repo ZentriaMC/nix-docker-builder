@@ -111,6 +111,10 @@ let
           (IFS=";"; keys=($SSH_KEYS); printf '%s\n' "''${keys[@]}") > "/nix/authorized_keys.d/builder"
         fi
 
+        echo "############ SSH publicHostKey START"
+        echo "$(base64 -w0 < $keyPath/ssh_host_ed25519_key.pub)"
+        echo "############ SSH publicHostKey END"
+
         mkdir -p /nix/rootxdg/cache
         mkdir -p /nix/rootxdg/config
 
