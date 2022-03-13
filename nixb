@@ -2,60 +2,79 @@
 set -euo pipefail
 
 # `nix build` wrapper script utilizing remote builders
+flags=()
 
-# https://stackoverflow.com/a/62961828/2382113
-join_by () {
-	# Argument #1 is the separator. It can be multi-character.
-	# Argument #2, 3, and so on, are the elements to be joined.
-	# Usage: join_by ", " "${array[@]}"
-	local SEPARATOR="$1"
-	shift
+builders_config="${NIX_BUILDERS_CONFIG:-${HOME}/config/nix-builders.nix}"
+if [ -f "${builders_config}" ]; then
+	builders_string="$(nix-instantiate --eval --json -E '
+	let
+	  mapAttrsToList = f: a: map (n: f n a.${n}) (builtins.attrNames a);
+	  mkBuilder = let
+	    join = builtins.concatStringsSep ",";
+	  in
+	    host:
+	    { arches ? [ "-" ]
+	    , sshKey ? "-"
+	    , parallelBuilds ? "-"
+	    , speedFactor ? "-"
+	    , requiredFeatures ? [ "-" ]
+	    , supportedFeatures ? [ "-" ]
+	    , hostED25519Key ? "-"
+	    }:
+	    builtins.concatStringsSep " " [
+	      host
+	      (join arches)
+	      sshKey
+	      parallelBuilds
+	      speedFactor
+	      (join supportedFeatures)
+	      (join requiredFeatures)
+	      hostED25519Key
+	    ];
 
-	local F=0
-	for x in "$@"
-	do
-		if [[ F -eq 1 ]]
-		then
-			echo -n "$SEPARATOR"
-		else
-			F=1
-		fi
-		echo -n "$x"
-	done
-	echo
-}
+	  builders = import '"$(realpath -- "${builders_config}")"';
+	in
+	builtins.concatStringsSep "; " (mapAttrsToList mkBuilder builders)
+	' | jq -r '.')"
 
-builders=(
-	"ssh-ng://dockerbuilder aarch64-linux"
-)
-
-flags=(
-	--builders "$(join_by "; " "${builders[@]}")"
-	--builders-use-substitutes
-)
-
-
-# https://nixos.org/manual/nix/stable/advanced-topics/distributed-builds.html
-# > Warning
-# > If you are building via the Nix daemon, it is the Nix daemon user account (that is, root) that should have SSH access to the remote machine.
-# > If you can’t or don’t want to configure root to be able to access to remote machine, you can use a private Nix store instead by passing e.g. --store ~/my-nix.
-store="$(realpath -- "${NIX_STORE:-$HOME/nix-store}")"
-if [ -n "${store}" ]; then
-	flags+=(--store "$(realpath -- "${store}")")
+	flags+=(
+		--builders "${builders_string}"
+		--builders-use-substitutes
+	)
 fi
 
-# If we keep this, then local nix gets very confused, e.g:
-# >  error: path '/nix/store/9krlzvny65gdc8s7kpb6lkx8cd02c25b-default-builder.sh' is not in the Nix store
-unset NIX_STORE
+current_system="$(nix-instantiate --eval -E --json 'builtins.currentSystem' | jq -r '.')"
+target_system="${current_system}"
+orig_argv=( "${@}" )
 
-if [ "$(uname -s)" = "Darwin" ]; then
-	# error: building using a diverted store is not supported on this platform
+while [ -n "${1:-}" ]; do
+	arg="${1}"
+	case "${arg}" in
+		--expr)
+			# Skip processing tons of text
+			shift
+			;;
+		--system)
+			shift
+			target_system="${1}"
+			;;
+		--store)
+			shift
+			store_path="${1}"
+
+			if ! [ "${store_path}" = "/nix/store" ] && [ "$(uname -s)" = "Darwin" ]; then
+				# error: building using a diverted store is not supported on this platform
+				flags+=(--max-jobs 0)
+			fi
+			;;
+	esac
+	shift
+done
+
+set -- "${orig_argv[@]}"
+
+if ! [ "${current_system}" = "${target_system}" ]; then
 	flags+=(--max-jobs 0)
 fi
 
-nix build "${flags[@]}" "${@}"
-
-# TODO: catch --out-link / --no-out-link and rewrite result symlink
-#if [ -d "${store}" ]; then
-#
-#fi
+nix "${flags[@]}" "${@}"
