@@ -8,33 +8,37 @@ builders_config="${NIX_BUILDERS_CONFIG:-${HOME}/config/nix-builders.nix}"
 if [ -f "${builders_config}" ]; then
 	builders_string="$(nix-instantiate --eval --json -E '
 	let
-	  mapAttrsToList = f: a: map (n: f n a.${n}) (builtins.attrNames a);
 	  mkBuilder = let
-	    join = builtins.concatStringsSep ",";
+	    nullOr = e: v: if v == null then e else v;
+	    dash = v: if v == null then "-" else toString v;
+	    dashList = v: if (v == null || v == []) then "-" else builtins.concatStringsSep "," v;
 	  in
-	    host:
-	    { arches ? [ "-" ]
-	    , sshKey ? "-"
-	    , parallelBuilds ? "-"
-	    , speedFactor ? "-"
-	    , requiredFeatures ? [ "-" ]
-	    , supportedFeatures ? [ "-" ]
-	    , hostED25519Key ? "-"
+	    { hostName
+	    , system ? null
+	    , systems ? null
+	    , sshUser ? null
+	    , sshKey ? null
+	    , maxJobs ? null
+	    , speedFactor ? null
+	    , mandatoryFeatures ? null
+	    , supportedFeatures ? null
+	    , publicHostKey ? null
 	    }:
+	    assert (hostName != null && hostName != "");
 	    builtins.concatStringsSep " " [
-	      host
-	      (join arches)
-	      sshKey
-	      parallelBuilds
-	      speedFactor
-	      (join supportedFeatures)
-	      (join requiredFeatures)
-	      hostED25519Key
+	      (if sshUser != null then "${sshUser}@${hostName}" else hostName)
+	      (nullOr (dashList systems) system)
+	      (dash sshKey)
+	      (toString (nullOr 1 maxJobs))
+	      (toString (nullOr 1 speedFactor))
+	      (dashList ((nullOr [] supportedFeatures) ++ (nullOr [] mandatoryFeatures)))
+	      (dashList mandatoryFeatures)
+	      (dash publicHostKey)
 	    ];
 
 	  builders = import '"$(realpath -- "${builders_config}")"';
 	in
-	builtins.concatStringsSep "; " (mapAttrsToList mkBuilder builders)
+	builtins.concatStringsSep "; " (map mkBuilder builders)
 	' | jq -r '.')"
 
 	flags+=(
