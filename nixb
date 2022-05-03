@@ -4,7 +4,7 @@ set -euo pipefail
 # `nix build` wrapper script utilizing remote builders
 flags=()
 
-builders_config="${NIX_BUILDERS_CONFIG:-${HOME}/config/nix-builders.nix}"
+builders_config="${NIX_BUILDERS_CONFIG:-${XDG_CONFIG_HOME:-${HOME}/.config}/nixb/builders.nix}"
 
 has_builders=0
 if [ -f "${builders_config}" ]; then
