@@ -6,6 +6,7 @@ builders_config="${NIX_BUILDERS_CONFIG:-${XDG_CONFIG_HOME:-${HOME}/.config}/nixb
 
 builders_string=""
 if [ -f "${builders_config}" ]; then
+	# shellcheck disable=SC2016
 	builders_string="$(env NIX_PATH="builders-config=${builders_config}" nix-instantiate --eval --json -E '
 	let
 	  mkBuilder = let
@@ -48,6 +49,7 @@ fi
 
 if (( ${#lines[@]} )); then
 	lines+=("${NIX_CONFIG:-}")
+	# shellcheck disable=SC2155 # echo cannot fail in this context
 	export NIX_CONFIG="$(IFS=$'\n'; echo "${lines[*]}")"
 fi
 
