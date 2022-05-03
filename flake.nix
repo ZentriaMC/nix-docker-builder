@@ -23,6 +23,8 @@
         pkgs = nixpkgs.legacyPackages.${system};
       in
       rec {
+        defaultPackage = packages.nixb;
+
         packages.dockerImage = import ./base.nix {
           inherit pkgs;
           inherit (docker-tools.lib) dockerConfig setupFHSScript symlinkCACerts;
