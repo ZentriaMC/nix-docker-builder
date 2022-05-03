@@ -26,13 +26,13 @@ You can use `./hack/run.sh`. It will set up the builder for your user (including
 
 See https://nixos.org/manual/nix/stable/advanced-topics/distributed-builds.html
 
-This repository provides a `nixb` wrapper. See its source about its caveats.
+This repository provides a `nixb` wrapper to invoke `nix` with remote builders flag.
 
 ### Testing
 
 ```shell
 ./test/remote_build/test.sh
-cat ./store/$(readlink test/remote_build/result)
+cat ./test/remote_build/result
 ```
 
 [lima]: https://github.com/lima-vm/lima
