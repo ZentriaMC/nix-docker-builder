@@ -12,7 +12,9 @@
   outputs = { self, nixpkgs, flake-utils, docker-tools }:
     let
       supportedSystems = [
+        "aarch64-darwin"
         "aarch64-linux"
+        "x86_64-darwin"
         "x86_64-linux"
       ];
     in
@@ -26,6 +28,29 @@
           inherit (docker-tools.lib) dockerConfig setupFHSScript symlinkCACerts;
 
           shadowLib = docker-tools.lib.shadow;
+        };
+
+        packages.nixb = pkgs.stdenvNoCC.mkDerivation rec {
+          pname = "nixb";
+          version = self.rev or "dirty";
+
+          src = ./.;
+
+          dontConfigure = true;
+
+          buildPhase = ''
+            substituteInPlace nixb \
+              --replace '"$(git rev-parse --show-toplevel)/with_nixb"' ${placeholder "out"}/bin/with_nixb
+          '';
+
+          installPhase = ''
+            runHook preInstall
+
+            install -D -m 755 with_nixb $out/bin/with_nixb
+            install -D -m 755 nixb $out/bin/nixb
+
+            runHook postInstall
+          '';
         };
       });
 }
