@@ -32,27 +32,41 @@
           shadowLib = docker-tools.lib.shadow;
         };
 
-        packages.nixb = pkgs.stdenvNoCC.mkDerivation rec {
-          pname = "nixb";
-          version = self.rev or "dirty";
+        packages.nixb = pkgs.callPackage
+          ({ stdenvNoCC, lib, makeWrapper, coreutils, jq }: stdenvNoCC.mkDerivation rec {
+            pname = "nixb";
+            version = self.rev or "dirty";
 
-          src = ./.;
+            src = ./.;
 
-          dontConfigure = true;
+            buildInputs = [
+              coreutils
+              jq
+            ];
 
-          buildPhase = ''
-            substituteInPlace nixb \
-              --replace '"$(git rev-parse --show-toplevel)/with_nixb"' ${placeholder "out"}/bin/with_nixb
-          '';
+            nativeBuildInputs = [
+              makeWrapper
+            ];
 
-          installPhase = ''
-            runHook preInstall
+            dontConfigure = true;
 
-            install -D -m 755 with_nixb $out/bin/with_nixb
-            install -D -m 755 nixb $out/bin/nixb
+            buildPhase = ''
+              substituteInPlace nixb \
+                --replace '"$(git rev-parse --show-toplevel)/with_nixb"' ${placeholder "out"}/bin/with_nixb
+            '';
 
-            runHook postInstall
-          '';
-        };
+            installPhase = ''
+              runHook preInstall
+
+              install -D -m 755 with_nixb $out/bin/with_nixb
+              install -D -m 755 nixb $out/bin/nixb
+
+              wrapProgram $out/bin/with_nixb --prefix PATH : ${lib.makeBinPath [ coreutils jq ]}
+              wrapProgram $out/bin/nixb      --prefix PATH : ${lib.makeBinPath [ coreutils jq ]}
+
+              runHook postInstall
+            '';
+          })
+          { };
       });
 }
