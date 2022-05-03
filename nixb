@@ -6,7 +6,7 @@ flags=()
 
 builders_config="${NIX_BUILDERS_CONFIG:-${HOME}/config/nix-builders.nix}"
 if [ -f "${builders_config}" ]; then
-	builders_string="$(nix-instantiate --eval --json -E '
+	builders_string="$(env NIX_PATH="builders-config=${builders_config}" nix-instantiate --eval --json -E '
 	let
 	  mkBuilder = let
 	    nullOr = e: v: if v == null then e else v;
@@ -36,7 +36,7 @@ if [ -f "${builders_config}" ]; then
 	      (dash publicHostKey)
 	    ];
 
-	  builders = import '"$(realpath -- "${builders_config}")"';
+	  builders = import <builders-config>;
 	in
 	builtins.concatStringsSep "; " (map mkBuilder builders)
 	' | jq -r '.')"
