@@ -8,7 +8,10 @@ builders_config="${NIX_BUILDERS_CONFIG:-${XDG_CONFIG_HOME:-${HOME}/.config}/nixb
 
 has_builders=0
 if [ -f "${builders_config}" ]; then
-	builders_string="$(env NIX_PATH="builders-config=${builders_config}" nix-instantiate --eval --json -E '
+	ignored_builders=() # TODO: implement
+	ignored_builders_json="$(printf -- '%s\n' "${ignored_builders[@]}" | jq -nR '[inputs | select(length>0)] | "\(.)"')"
+	builders_string="$(env NIX_PATH="builders-config=${builders_config}" nix-instantiate --eval --json --arg ignoredBuildersJSON "${ignored_builders_json}" -E '
+	{ ignoredBuildersJSON }:
 	let
 	  mkBuilder = let
 	    nullOr = e: v: if v == null then e else v;
