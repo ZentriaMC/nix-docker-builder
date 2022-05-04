@@ -2,46 +2,14 @@
 set -euo pipefail
 
 lines=()
-builders_config="${NIX_BUILDERS_CONFIG:-${XDG_CONFIG_HOME:-${HOME}/.config}/nixb/builders.nix}"
 
-builders_string=""
-if [ -f "${builders_config}" ]; then
-	# shellcheck disable=SC2016
-	builders_string="$(env NIX_PATH="builders-config=${builders_config}" nix-instantiate --eval --json -E '
-	let
-	  mkBuilder = let
-	    nullOr = e: v: if v == null then e else v;
-	    dash = v: if v == null then "-" else toString v;
-	    dashList = v: if (v == null || v == []) then "-" else builtins.concatStringsSep "," v;
-	  in
-	    { hostName
-	    , system ? null
-	    , systems ? null
-	    , sshUser ? null
-	    , sshKey ? null
-	    , maxJobs ? null
-	    , speedFactor ? null
-	    , mandatoryFeatures ? null
-	    , supportedFeatures ? null
-	    , publicHostKey ? null
-	    }:
-	    assert (hostName != null && hostName != "");
-	    builtins.concatStringsSep " " [
-	      (if sshUser != null then "${sshUser}@${hostName}" else hostName)
-	      (nullOr (dashList systems) system)
-	      (dash sshKey)
-	      (toString (nullOr 1 maxJobs))
-	      (toString (nullOr 1 speedFactor))
-	      (dashList ((nullOr [] supportedFeatures) ++ (nullOr [] mandatoryFeatures)))
-	      (dashList mandatoryFeatures)
-	      (dash publicHostKey)
-	    ];
-
-	  builders = import <builders-config>;
-	in
-	builtins.concatStringsSep "; " (map mkBuilder builders)
-	' | jq -r '.')"
+debugImport="false"
+if [[ $- = *x* ]]; then
+	debugImport="true"
 fi
+
+loader="$(git rev-parse --show-toplevel)/lib/load-builders.nix"
+builders_string="$(env NIX_PATH="${NIX_PATH:-}${NIX_PATH+:}loader=${loader}" nix-instantiate --eval --json -E 'import <loader> { debugImport = '"${debugImport}"'; }' --show-trace | jq -r '.')"
 
 if [ -n "${builders_string}" ]; then
 	lines+=("builders = ${builders_string}")

@@ -53,6 +53,9 @@
             buildPhase = ''
               substituteInPlace nixb \
                 --replace '"$(git rev-parse --show-toplevel)/with_nixb"' ${placeholder "out"}/bin/with_nixb
+
+              substituteInPlace with_nixb \
+                --replace '$(git rev-parse --show-toplevel)/lib' ${placeholder "out"}/lib
             '';
 
             installPhase = ''
@@ -60,6 +63,7 @@
 
               install -D -m 755 with_nixb $out/bin/with_nixb
               install -D -m 755 nixb $out/bin/nixb
+              cp -r lib $out/lib
 
               wrapProgram $out/bin/with_nixb --prefix PATH : ${lib.makeBinPath [ coreutils jq ]}
               wrapProgram $out/bin/nixb      --prefix PATH : ${lib.makeBinPath [ coreutils jq ]}
