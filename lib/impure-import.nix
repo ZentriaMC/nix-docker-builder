@@ -1,4 +1,4 @@
-{ throwIfNone ? false, debugImport ? false }:
+{ debugImport ? false }:
 
 let
   debugPath = p: if debugImport then builtins.trace "using config '${p}'" p else p;
@@ -24,7 +24,4 @@ else
   else
     if okPath xdgBuildersFile
     then import (debugPath xdgBuildersFile)
-    else
-      if throwIfNone
-      then throw "Unable to find builders to import"
-      else [ ]
+    else [ ]

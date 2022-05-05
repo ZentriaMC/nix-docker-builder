@@ -18,7 +18,9 @@
         "x86_64-linux"
       ];
     in
-    flake-utils.lib.eachSystem supportedSystems (system:
+    {
+      lib = import ./lib/flake-lib.nix;
+    } // (flake-utils.lib.eachSystem supportedSystems (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
       in
@@ -72,5 +74,5 @@
             '';
           })
           { };
-      });
+      }));
 }

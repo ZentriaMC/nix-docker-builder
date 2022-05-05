@@ -1,4 +1,4 @@
-{ builders ? null, throwIfNone ? false, debugImport ? false }:
+{ builders ? null, throwIfNone ? false, debugImport ? false, noImpure ? false }:
 
 let
   mkBuilder =
@@ -30,13 +30,20 @@ let
         (dash publicHostKey)
       ];
 
-  builders' =
+  importedBuilders =
     if (builtins.isPath builders || builtins.isString builders)
     then import builders
     else
       if builtins.isAttrs builders
       then builders
       else
-        import ./impure-import.nix { inherit debugImport throwIfNone; };
+        if noImpure
+        then [ ]
+        else import ./impure-import.nix { inherit debugImport; };
+
+  builders' =
+    if (importedBuilders == [ ] && throwIfNone)
+    then throw "Unable to find builders to import"
+    else importedBuilders;
 in
 builtins.concatStringsSep "; " (map mkBuilder builders')
